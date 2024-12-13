@@ -1,0 +1,30 @@
+{
+  "name": "side-hustle-generator",
+  "version": "1.0.0",
+  "description": "A web application that generates personalized side-hustle ideas using OpenAI's ChatGPT API",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "side-hustle",
+    "openai",
+    "supabase",
+    "generator"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "latest",
+    "marked": "^15.0.3",
+    "openai": "latest"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "vite": "latest"
+  }
+}

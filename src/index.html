@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Side-Hustle Generator</title>
+    <link rel="stylesheet" type="text/css" href="./css/style.css">
+    <script type="module" src="./js/main.js"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8">
+        <!-- Auth Section -->
+        <div id="auth-section" class="mb-8">
+            <div id="auth-status" class="text-right"></div>
+            <button id="login-button" class="bg-blue-500 text-white px-4 py-2 rounded">Login</button>
+            <button id="signup-button" class="bg-green-500 text-white px-4 py-2 rounded">Sign Up</button>
+            <button id="logout-button" class="hidden bg-red-500 text-white px-4 py-2 rounded">Logout</button>
+        </div>
+
+        <!-- Input Form -->
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-3xl font-bold mb-6 text-center">Side-Hustle Generator</h1>
+
+            <form id="generator-form" class="space-y-4">
+                <div>
+                    <label for="skills" class="block text-sm font-medium text-gray-700">Your Skills</label>
+                    <input type="text" id="skills" name="skills"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="teaching, learning, workshops">
+                </div>
+
+                <div>
+                    <label for="background" class="block text-sm font-medium text-gray-700">Your Background</label>
+                    <input type="text" id="background" name="background"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="marketer, have ADHD, love playing D&D">
+                </div>
+
+                <div>
+                    <label for="idealCustomer" class="block text-sm font-medium text-gray-700">Your Ideal
+                        Customer</label>
+                    <input type="text" id="idealCustomer" name="idealCustomer"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="full time professionals looking to build their first side business">
+                </div>
+
+                <div>
+                    <label for="secondaryGoal" class="block text-sm font-medium text-gray-700">Your Secondary
+                        Goal</label>
+                    <input type="text" id="secondaryGoal" name="secondaryGoal"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="build leveraged income streams">
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                    Generate your side-hustle
+                </button>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="mt-8 max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6 hidden">
+            <h2 class="text-2xl font-semibold mb-4">Your Side-Hustle Idea</h2>
+            <div id="generated-idea" class="prose w-full overflow-x-auto"></div>
+        </div>
+
+        <!-- History Section -->
+        <div id="history" class="mt-8 max-w-4xl mx-auto">
+            <h2 class="text-2xl font-semibold mb-4">Previous Generations</h2>
+            <div id="history-list" class="space-y-4"></div>
+        </div>
+    </div>
+</body>
+
+</html>
