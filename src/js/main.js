@@ -242,7 +242,7 @@ function displayHistory(generations) {
                     <div>${gen.inputs.secondary_goal}</div>
                 </div>
             </div>
-            <div class="mt-4 flex justify-end">
+            <div class="mt-4 flex justify-end space-x-2">
                 <button 
                     onclick="window.copyShareLink('${gen.id}')"
                     class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -251,6 +251,15 @@ function displayHistory(generations) {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                     </svg>
                     Share
+                </button>
+                <button 
+                    onclick="window.showDeleteConfirmation('${gen.id}')"
+                    class="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
                 </button>
             </div>
         </details>
@@ -267,6 +276,65 @@ window.copyShareLink = async function (generationId) {
         console.error('Failed to copy:', err);
         alert('Failed to copy share link');
     }
+};
+
+// Add delete confirmation modal to the DOM
+document.body.insertAdjacentHTML('beforeend', `
+    <div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <h3 class="text-lg font-semibold mb-4">Are you sure you want to delete?</h3>
+            <div class="flex justify-end space-x-4">
+                <button id="cancelDelete" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                    No
+                </button>
+                <button id="confirmDelete" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                    Yes, delete
+                </button>
+            </div>
+        </div>
+    </div>
+`);
+
+// Add delete functionality to window object
+window.showDeleteConfirmation = function (generationId) {
+    const modal = document.getElementById('deleteModal');
+    const confirmBtn = document.getElementById('confirmDelete');
+    const cancelBtn = document.getElementById('cancelDelete');
+
+    modal.classList.remove('hidden');
+
+    const handleDelete = async () => {
+        try {
+            const { error } = await supabase
+                .from('side_hustle_generations')
+                .delete()
+                .eq('id', generationId);
+
+            if (error) throw error;
+
+            // Refresh the history
+            await loadUserHistory();
+        } catch (error) {
+            console.error('Error deleting generation:', error);
+            alert('Failed to delete generation');
+        } finally {
+            modal.classList.add('hidden');
+            cleanup();
+        }
+    };
+
+    const handleCancel = () => {
+        modal.classList.add('hidden');
+        cleanup();
+    };
+
+    const cleanup = () => {
+        confirmBtn.removeEventListener('click', handleDelete);
+        cancelBtn.removeEventListener('click', handleCancel);
+    };
+
+    confirmBtn.addEventListener('click', handleDelete);
+    cancelBtn.addEventListener('click', handleCancel);
 };
 
 // Handle URL routing for individual generations
