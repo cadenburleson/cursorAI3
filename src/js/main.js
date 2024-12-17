@@ -222,10 +222,17 @@ async function loadUserHistory() {
 
 // Display generation history with markdown formatting
 function displayHistory(generations) {
-    historyList.innerHTML = generations.map(gen => `
-        <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
-            <div class="text-sm text-gray-500 mb-2">${new Date(gen.created_at).toLocaleString()}</div>
-            <div class="prose max-w-none">${marked.parse(gen.generated_idea)}</div>
+    historyList.innerHTML = generations.map(gen => {
+        // Extract the first line as title, fallback to timestamp if no clear title
+        const lines = gen.generated_idea.split('\n');
+        const title = lines[0].replace(/^#\s*/, '').trim() || 'Side Hustle Idea';
+
+        return `
+        <details class="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <summary class="text-sm text-gray-500 mb-2 cursor-pointer hover:text-gray-700">
+                ${title} (${new Date(gen.created_at).toLocaleString()})
+            </summary>
+            <div class="prose max-w-none mt-4">${marked.parse(gen.generated_idea)}</div>
             <div class="mt-4 p-4 bg-gray-50 rounded-lg">
                 <h3 class="font-semibold text-gray-700 mb-2">Generation Inputs:</h3>
                 <div class="space-y-2 text-sm text-gray-600">
@@ -235,6 +242,6 @@ function displayHistory(generations) {
                     <div>${gen.inputs.secondary_goal}</div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        </details>
+    `}).join('');
 } 
