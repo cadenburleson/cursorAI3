@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Side-Hustle Generator</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="reset-password-form">
+            <h1>Login</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="Enter your email">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                </div>
+
+                <div class="alert" id="messageBox" style="display: none;"></div>
+
+                <button type="submit" class="btn-primary">
+                    Login
+                </button>
+
+                <div class="form-footer">
+                    <a href="reset-password.html">Forgot Password?</a>
+                    <span class="separator">|</span>
+                    <a href="index.html">Back to Home</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script type="module" src="js/login.js"></script>
+</body>
+
+</html>

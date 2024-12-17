@@ -12,6 +12,7 @@ marked.setOptions({
 
 // Initialize Supabase client
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+console.log('Main: Supabase client initialized');
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -33,69 +34,161 @@ const generateButton = document.querySelector('#generator-form button[type="subm
 // Auth state management
 let currentUser = null;
 
-// Check initial auth state
+// Initialize auth state
+async function initializeAuth() {
+    console.log('Main: Initializing auth state...');
+    try {
+        // Check for auth state in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const authState = urlParams.get('auth_state');
+
+        if (authState) {
+            console.log('Main: Found auth state in URL');
+            try {
+                // Decode and parse the state
+                const state = JSON.parse(atob(authState));
+
+                // Set the session in Supabase client
+                await supabase.auth.setSession({
+                    access_token: state.access_token,
+                    refresh_token: state.refresh_token
+                });
+
+                // Clean up URL
+                window.history.replaceState({}, document.title, '/');
+
+                // Verify session was set
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) throw error;
+
+                if (!session) {
+                    throw new Error('Failed to initialize session from URL state');
+                }
+
+                currentUser = session.user;
+                updateAuthUI();
+                await loadUserHistory();
+                return;
+            } catch (error) {
+                console.error('Main: Error setting session from URL state:', error);
+                window.location.href = '/login.html';
+                return;
+            }
+        }
+
+        // If no auth state in URL, check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (session?.user) {
+            currentUser = session.user;
+            updateAuthUI();
+            await loadUserHistory();
+        } else {
+            currentUser = null;
+            updateAuthUI();
+        }
+    } catch (error) {
+        console.error('Main: Auth initialization error:', error);
+        window.location.href = '/login.html';
+    }
+}
+
+// Listen for auth changes
 supabase.auth.onAuthStateChange((event, session) => {
+    console.log('Main: Auth state changed:', {
+        event,
+        user: session?.user?.email || 'none',
+        timestamp: new Date().toISOString(),
+        hasAccessToken: session?.access_token ? 'exists' : 'missing'
+    });
+
+    if (event === 'SIGNED_OUT') {
+        console.log('Main: User signed out, clearing state');
+        currentUser = null;
+        updateAuthUI();
+        return;
+    }
+
     currentUser = session?.user || null;
+    console.log('Main: Current user updated:', currentUser?.email || 'none');
+
     updateAuthUI();
+
     if (currentUser) {
-        loadUserHistory();
+        console.log('Main: Loading user history...');
+        loadUserHistory().catch(err => {
+            console.error('Main: Error loading history:', err);
+        });
+    } else {
+        console.log('Main: Clearing history for logged out user');
+        historyList.innerHTML = '';
     }
 });
 
 // Update UI based on auth state
 function updateAuthUI() {
+    console.log('Main: Updating UI for user:', currentUser?.email || 'none');
+
     if (currentUser) {
+        console.log('Main: User is logged in, showing authenticated UI');
         authStatus.textContent = `Logged in as: ${currentUser.email}`;
         loginButton.classList.add('hidden');
         signupButton.classList.add('hidden');
         logoutButton.classList.remove('hidden');
+        generateButton.disabled = false;
+        generateButton.title = '';
     } else {
+        console.log('Main: User is not logged in, showing public UI');
         authStatus.textContent = 'Not logged in';
         loginButton.classList.remove('hidden');
         signupButton.classList.remove('hidden');
         logoutButton.classList.add('hidden');
+        generateButton.disabled = true;
+        generateButton.title = 'Please log in to generate ideas';
     }
 }
 
 // Auth event listeners
-loginButton.addEventListener('click', async () => {
-    const email = prompt('Enter your email:');
-    const password = prompt('Enter your password:');
-
-    try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
-        if (error) throw error;
-    } catch (error) {
-        alert('Error logging in: ' + error.message);
-    }
+loginButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    console.log('Main: Login button clicked, redirecting to login page');
+    window.location.replace('/login.html');
 });
 
-signupButton.addEventListener('click', async () => {
-    const email = prompt('Enter your email:');
-    const password = prompt('Enter your password:');
-
-    try {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password
-        });
-        if (error) throw error;
-        alert('Check your email for verification link!');
-    } catch (error) {
-        alert('Error signing up: ' + error.message);
-    }
+signupButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    console.log('Main: Signup button clicked, redirecting to signup page');
+    window.location.replace('/signup.html');
 });
 
-logoutButton.addEventListener('click', async () => {
+logoutButton.addEventListener('click', async (e) => {
+    e.preventDefault();
+    console.log('Main: Logout button clicked');
     try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        console.log('Main: Signing out...');
+        await supabase.auth.signOut();
+        console.log('Main: Sign out successful');
+        currentUser = null;
+        updateAuthUI();
+        window.location.replace('/');
     } catch (error) {
+        console.error('Main: Error logging out:', error);
+        console.error('Main: Error details:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         alert('Error logging out: ' + error.message);
     }
+});
+
+// Initialize auth on page load
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Main: DOM loaded, initializing auth...');
+    initializeAuth().catch(error => {
+        console.error('Main: Error during auth initialization:', error);
+    });
 });
 
 // Form submission handler
@@ -103,7 +196,7 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     if (!currentUser) {
-        alert('Please log in first!');
+        alert('Please log in first to generate ideas!');
         return;
     }
 
