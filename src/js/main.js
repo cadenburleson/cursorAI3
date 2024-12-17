@@ -242,6 +242,78 @@ function displayHistory(generations) {
                     <div>${gen.inputs.secondary_goal}</div>
                 </div>
             </div>
+            <div class="mt-4 flex justify-end">
+                <button 
+                    onclick="window.copyShareLink('${gen.id}')"
+                    class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share
+                </button>
+            </div>
         </details>
     `}).join('');
-} 
+}
+
+// Add copy share link function to window object
+window.copyShareLink = async function (generationId) {
+    const shareUrl = `${window.location.origin}/generation/${generationId}`;
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Share link copied to clipboard!');
+    } catch (err) {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy share link');
+    }
+};
+
+// Handle URL routing for individual generations
+async function handleRouting() {
+    const path = window.location.pathname;
+    const generationMatch = path.match(/^\/generation\/(.+)$/);
+
+    if (generationMatch) {
+        const generationId = generationMatch[1];
+        try {
+            const { data: generation, error } = await supabase
+                .from('side_hustle_generations')
+                .select('*')
+                .eq('id', generationId)
+                .single();
+
+            if (error) throw error;
+
+            if (generation) {
+                // Hide the form and show only the result
+                document.getElementById('generator-form').parentElement.style.display = 'none';
+                document.getElementById('history').style.display = 'none';
+
+                // Display the shared generation
+                resultsDiv.classList.remove('hidden');
+                displayResult(generation.generated_idea);
+
+                // Add a "Generate Your Own" button
+                const generateOwnBtn = document.createElement('div');
+                generateOwnBtn.className = 'mt-8 text-center';
+                generateOwnBtn.innerHTML = `
+                    <a href="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Generate Your Own Side-Hustle Idea
+                    </a>
+                `;
+                resultsDiv.appendChild(generateOwnBtn);
+            } else {
+                resultsDiv.innerHTML = '<p class="text-red-500">Generation not found</p>';
+                resultsDiv.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error fetching generation:', error);
+            resultsDiv.innerHTML = '<p class="text-red-500">Error loading generation</p>';
+            resultsDiv.classList.remove('hidden');
+        }
+    }
+}
+
+// Call handleRouting on page load
+window.addEventListener('load', handleRouting); 
