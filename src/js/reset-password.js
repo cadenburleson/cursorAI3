@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import config from './config.js';
+import config from './utils/config.js';
 
 // Initialize Supabase client
 const supabase = createClient(

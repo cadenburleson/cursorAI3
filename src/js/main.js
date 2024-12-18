@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import { marked } from 'marked';
-import config from './config.js';
+import config from './utils/config.js';
 
 /**
  * Authentication State Management

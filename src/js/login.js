@@ -15,7 +15,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import config from './config.js';
+import config from './utils/config.js';
 
 console.log('Login page loaded, initializing...');
 
