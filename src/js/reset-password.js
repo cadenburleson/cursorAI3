@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-import { CONFIG } from './config.js';
+import config from './config.js';
 
 // Initialize Supabase client
-const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+const supabase = createClient(
+    config.supabaseUrl,
+    config.supabaseAnonKey
+);
 
 // Constants
 const CHANGE_PASSWORD_URL = '/change-password.html';  // The URL where users will set their new password
