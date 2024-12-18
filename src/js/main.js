@@ -1,7 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
-import { CONFIG } from './config.js';
 import { marked } from 'marked';
+import config from './config.js';
+
+/**
+ * Authentication State Management
+ * 
+ * Critical Components:
+ * 1. Session Persistence: Handled by checkPersistedSession()
+ * 2. Auth State Changes: Monitored by onAuthStateChange
+ * 3. UI Updates: Managed by updateAuthUI()
+ * 
+ * DO NOT MODIFY these components without thorough testing
+ * Previous issues occurred when changing this working implementation
+ */
 
 // Configure marked options for GitHub-flavored markdown
 marked.setOptions({
@@ -11,12 +23,24 @@ marked.setOptions({
 });
 
 // Initialize Supabase client
-const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+const supabase = createClient(
+    config.supabaseUrl,
+    config.supabaseAnonKey,
+    {
+        auth: {
+            persistSession: true,
+            storageKey: `sb-${config.supabaseUrl}-auth-token`,
+            storage: window.localStorage,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    }
+);
 console.log('Main: Supabase client initialized');
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-    apiKey: CONFIG.OPENAI_API_KEY,
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
     dangerouslyAllowBrowser: true
 });
 
@@ -26,168 +50,153 @@ const resultsDiv = document.getElementById('results');
 const generatedIdeaDiv = document.getElementById('generated-idea');
 const historyList = document.getElementById('history-list');
 const authStatus = document.getElementById('auth-status');
-const loginButton = document.getElementById('login-button');
-const signupButton = document.getElementById('signup-button');
 const logoutButton = document.getElementById('logout-button');
 const generateButton = document.querySelector('#generator-form button[type="submit"]');
 
 // Auth state management
 let currentUser = null;
 
-// Initialize auth state
-async function initializeAuth() {
-    console.log('Main: Initializing auth state...');
-    try {
-        // Check for auth state in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const authState = urlParams.get('auth_state');
+// Add this before initializeAuth
+async function checkPersistedSession() {
+    const storageKey = `sb-${config.supabaseUrl}-auth-token`;
+    const persistedSession = localStorage.getItem(storageKey);
 
-        if (authState) {
-            console.log('Main: Found auth state in URL');
-            try {
-                // Decode and parse the state
-                const state = JSON.parse(atob(authState));
-
-                // Set the session in Supabase client
-                await supabase.auth.setSession({
-                    access_token: state.access_token,
-                    refresh_token: state.refresh_token
-                });
-
-                // Clean up URL
-                window.history.replaceState({}, document.title, './');
-
-                // Verify session was set
-                const { data: { session }, error } = await supabase.auth.getSession();
-                if (error) throw error;
-
-                if (!session) {
-                    throw new Error('Failed to initialize session from URL state');
-                }
-
-                currentUser = session.user;
-                updateAuthUI();
-                await loadUserHistory();
-                return;
-            } catch (error) {
-                console.error('Main: Error setting session from URL state:', error);
-                window.location.href = './login.html';
-                return;
-            }
+    if (persistedSession) {
+        try {
+            const session = JSON.parse(persistedSession);
+            await supabase.auth.setSession({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token
+            });
+            return true;
+        } catch (error) {
+            console.error('Error restoring session:', error);
+            localStorage.removeItem(storageKey);
         }
+    }
+    return false;
+}
 
-        // If no auth state in URL, check for existing session
+// Update initializeAuth to use this
+async function initializeAuth() {
+    console.log('Main: Starting auth initialization...');
+
+    try {
+        // First try to restore persisted session
+        const restored = await checkPersistedSession();
+        console.log('Session restored:', restored);
+
+        // Then get current session
         const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Current session state:', {
+            exists: !!session,
+            user: session?.user?.email || 'none',
+            error: error?.message || 'none'
+        });
+
         if (error) throw error;
 
         if (session?.user) {
+            console.log('Valid session found, updating state...');
             currentUser = session.user;
             updateAuthUI();
             await loadUserHistory();
+            console.log('Auth initialization complete - user logged in');
         } else {
+            console.log('No valid session found');
             currentUser = null;
             updateAuthUI();
+            console.log('Auth initialization complete - no user');
         }
     } catch (error) {
-        console.error('Main: Auth initialization error:', error);
-        window.location.href = './login.html';
-    }
-}
-
-// Listen for auth changes
-supabase.auth.onAuthStateChange((event, session) => {
-    console.log('Main: Auth state changed:', {
-        event,
-        user: session?.user?.email || 'none',
-        timestamp: new Date().toISOString(),
-        hasAccessToken: session?.access_token ? 'exists' : 'missing'
-    });
-
-    if (event === 'SIGNED_OUT') {
-        console.log('Main: User signed out, clearing state');
+        console.error('Auth initialization error:', error);
         currentUser = null;
         updateAuthUI();
-        return;
     }
-
-    currentUser = session?.user || null;
-    console.log('Main: Current user updated:', currentUser?.email || 'none');
-
-    updateAuthUI();
-
-    if (currentUser) {
-        console.log('Main: Loading user history...');
-        loadUserHistory().catch(err => {
-            console.error('Main: Error loading history:', err);
-        });
-    } else {
-        console.log('Main: Clearing history for logged out user');
-        historyList.innerHTML = '';
-    }
-});
+}
 
 // Update UI based on auth state
 function updateAuthUI() {
-    console.log('Main: Updating UI for user:', currentUser?.email || 'none');
+    console.log('Updating UI for user:', currentUser?.email || 'none');
+
+    const loginButton = document.querySelector('.btn-primary:not(.btn-signup)');
+    const signupButton = document.querySelector('.btn-primary.btn-signup');
 
     if (currentUser) {
-        console.log('Main: User is logged in, showing authenticated UI');
-        authStatus.textContent = `Logged in as: ${currentUser.email}`;
-        loginButton.classList.add('hidden');
-        signupButton.classList.add('hidden');
-        logoutButton.classList.remove('hidden');
-        generateButton.disabled = false;
-        generateButton.title = '';
+        // User is logged in
+        if (authStatus) authStatus.textContent = `Logged in as: ${currentUser.email}`;
+        if (loginButton) loginButton.style.display = 'none';
+        if (signupButton) signupButton.style.display = 'none';
+        if (logoutButton) {
+            logoutButton.style.display = 'inline-block';
+            logoutButton.classList.remove('hidden');
+        }
+        if (generateButton) {
+            generateButton.disabled = false;
+            generateButton.title = '';
+        }
     } else {
-        console.log('Main: User is not logged in, showing public UI');
-        authStatus.textContent = 'Not logged in';
-        loginButton.classList.remove('hidden');
-        signupButton.classList.remove('hidden');
-        logoutButton.classList.add('hidden');
-        generateButton.disabled = true;
-        generateButton.title = 'Please log in to generate ideas';
+        // User is not logged in
+        if (authStatus) authStatus.textContent = 'Not logged in';
+        if (loginButton) loginButton.style.display = 'inline-block';
+        if (signupButton) signupButton.style.display = 'inline-block';
+        if (logoutButton) {
+            logoutButton.style.display = 'none';
+            logoutButton.classList.add('hidden');
+        }
+        if (generateButton) {
+            generateButton.disabled = true;
+            generateButton.title = 'Please log in to generate ideas';
+        }
     }
 }
 
-// Auth event listeners
-loginButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    console.log('Main: Login button clicked, redirecting to login page');
-    window.location.replace('./login.html');
-});
+// Handle logout
+if (logoutButton) {
+    logoutButton.addEventListener('click', async () => {
+        try {
+            await supabase.auth.signOut();
+            currentUser = null;
+            updateAuthUI();
+            if (historyList) historyList.innerHTML = '';
+            window.location.href = './';
+        } catch (error) {
+            console.error('Error signing out:', error);
+            alert('Error signing out: ' + error.message);
+        }
+    });
+}
 
-signupButton.addEventListener('click', (e) => {
-    e.preventDefault();
-    console.log('Main: Signup button clicked, redirecting to signup page');
-    window.location.replace('./signup.html');
-});
+// Listen for auth state changes
+supabase.auth.onAuthStateChange((event, session) => {
+    console.log('Auth state changed:', {
+        event,
+        user: session?.user?.email || 'none',
+        timestamp: new Date().toISOString()
+    });
 
-logoutButton.addEventListener('click', async (e) => {
-    e.preventDefault();
-    console.log('Main: Logout button clicked');
-    try {
-        console.log('Main: Signing out...');
-        await supabase.auth.signOut();
-        console.log('Main: Sign out successful');
+    if (event === 'SIGNED_IN') {
+        currentUser = session?.user || null;
+        updateAuthUI();
+        if (currentUser) {
+            loadUserHistory().catch(err => {
+                console.error('Error loading history:', err);
+            });
+        }
+    } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         updateAuthUI();
-        window.location.replace('./');
-    } catch (error) {
-        console.error('Main: Error logging out:', error);
-        console.error('Main: Error details:', {
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-        });
-        alert('Error logging out: ' + error.message);
+        if (historyList) {
+            historyList.innerHTML = '';
+        }
     }
 });
 
-// Initialize auth on page load
+// Initialize auth when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Main: DOM loaded, initializing auth...');
+    console.log('DOM loaded, initializing auth...');
     initializeAuth().catch(error => {
-        console.error('Main: Error during auth initialization:', error);
+        console.error('Error during auth initialization:', error);
     });
 });
 
@@ -232,7 +241,7 @@ form.addEventListener('submit', async (e) => {
             messages: [
                 {
                     role: "system",
-                    content: CONFIG.SYSTEM_PROMPT
+                    content: import.meta.env.VITE_SYSTEM_PROMPT
                 },
                 {
                     role: "user",
@@ -496,4 +505,4 @@ async function handleRouting() {
 }
 
 // Call handleRouting on page load
-window.addEventListener('load', handleRouting); 
+window.addEventListener('load', handleRouting);

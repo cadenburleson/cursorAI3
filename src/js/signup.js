@@ -1,86 +1,83 @@
 import { createClient } from '@supabase/supabase-js';
-import { CONFIG } from './config.js';
+import config from './config.js';
 
-// Initialize Supabase client
-const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+console.log('Signup script loaded');
 
-// DOM Elements
+const supabase = createClient(
+    config.supabaseUrl,
+    config.supabaseAnonKey
+);
+
 const signupForm = document.getElementById('signupForm');
 const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
-const confirmPasswordInput = document.getElementById('confirmPassword');
 const messageBox = document.getElementById('messageBox');
 
-// Helper function to show messages
 function showMessage(message, isError = false) {
+    console.log(`Showing message: ${message} (isError: ${isError})`);
     messageBox.textContent = message;
     messageBox.style.display = 'block';
     messageBox.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
 }
 
-// Check if we're already logged in
-supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session) {
-        window.location.href = '/';
-    }
-});
-
-// Handle form submission
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    console.log('Signup form submitted');
 
     const email = emailInput.value.trim();
     const password = passwordInput.value;
-    const confirmPassword = confirmPasswordInput.value;
 
-    // Validate passwords match
-    if (password !== confirmPassword) {
-        showMessage('Passwords do not match', true);
-        return;
-    }
-
-    // Validate password strength (at least 6 characters)
-    if (password.length < 6) {
-        showMessage('Password must be at least 6 characters long', true);
+    if (!email || !password) {
+        showMessage('Please enter both email and password', true);
         return;
     }
 
     try {
+        // First check if email already exists
+        const { data: existingUser, error: existingUserError } = await supabase
+            .from('users')
+            .select('email')
+            .eq('email', email)
+            .single();
+
+        if (existingUser) {
+            showMessage('An account with this email already exists. Please login instead.', true);
+            return;
+        }
+
         showMessage('Creating account...', false);
+
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 emailRedirectTo: `${window.location.origin}/login.html`,
                 data: {
-                    email: email
+                    email_confirm: true
                 }
             }
         });
 
-        if (error) throw error;
-
-        if (data?.user?.identities?.length === 0) {
-            showMessage('An account with this email already exists. Please try logging in.', true);
-            setTimeout(() => {
-                window.location.href = '/login.html';
-            }, 2000);
+        if (error) {
+            console.error('Signup error:', error);
+            showMessage(error.message || 'Failed to create account', true);
             return;
         }
 
-        if (data?.user?.confirmation_sent_at) {
-            showMessage('Verification email sent! Please check your inbox and spam folder.', false);
-            // Clear form
-            signupForm.reset();
-        } else {
-            // If no confirmation was sent, the user might be already confirmed
-            showMessage('Account created! You can now log in.', false);
-            setTimeout(() => {
-                window.location.href = '/login.html';
-            }, 2000);
+        if (data?.user?.identities?.length === 0) {
+            showMessage('An account with this email already exists. Please login instead.', true);
+            return;
         }
+
+        showMessage('Account created successfully! Please check your email to confirm your account. Check your spam folder if you don\'t see it.', false);
+
+        // Optional: Redirect to login page after successful signup
+        setTimeout(() => {
+            window.location.href = '/login.html';
+        }, 3000);
+
     } catch (error) {
         console.error('Signup error:', error);
-        showMessage(error.message || 'Error creating account. Please try again.', true);
+        showMessage('An error occurred during signup', true);
     }
 }); 

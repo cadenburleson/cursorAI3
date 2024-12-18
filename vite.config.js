@@ -3,7 +3,8 @@ import { resolve } from 'path';
 
 export default defineConfig({
     root: 'src',
-    base: '',
+    base: './',
+    envDir: '../',
     build: {
         outDir: '../dist',
         emptyOutDir: true,
@@ -21,15 +22,5 @@ export default defineConfig({
         port: 3000,
         open: true
     },
-    css: {
-        postcss: './postcss.config.js',
-    },
-    experimental: {
-        renderBuiltUrl(filename, { hostType, type, hostId }) {
-            if (type === 'public') {
-                return '/' + filename;
-            }
-            return filename;
-        }
-    }
+    envPrefix: 'VITE_'
 }); 

@@ -1,9 +1,36 @@
+/**
+ * Login Handler
+ * 
+ * Critical Path:
+ * 1. Sign in with Supabase auth
+ * 2. Store session with correct key format
+ * 3. Verify session is set
+ * 4. Redirect using correct path
+ * 
+ * IMPORTANT: 
+ * - Keep the localStorage key format: `sb-${config.supabaseUrl}-auth-token`
+ * - Use window.location.origin + window.location.pathname.replace('login.html', '')
+ *   for redirects to maintain proper paths
+ * - Do not modify the working authentication flow without thorough testing
+ */
+
 import { createClient } from '@supabase/supabase-js';
-import { CONFIG } from './config.js';
+import config from './config.js';
+
+console.log('Login page loaded, initializing...');
 
 // Initialize Supabase client
-const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-console.log('Supabase client initialized');
+const supabase = createClient(
+    config.supabaseUrl,
+    config.supabaseAnonKey,
+    {
+        auth: {
+            storageKey: `sb-${config.supabaseUrl}-auth-token`,
+            autoRefreshToken: true,
+            persistSession: true
+        }
+    }
+);
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
@@ -11,90 +38,73 @@ const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
 const messageBox = document.getElementById('messageBox');
 
-// Helper function to show messages
 function showMessage(message, isError = false) {
-    console.log(`Showing message: ${message} (isError: ${isError})`);
+    if (!messageBox) return;
     messageBox.textContent = message;
     messageBox.style.display = 'block';
     messageBox.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
 }
 
-// Handle form submission
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    console.log('Login form submitted');
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        console.log('Login form submitted');
 
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    console.log('Attempting login for email:', email);
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
 
-    try {
-        showMessage('Logging in...', false);
+        try {
+            showMessage('Logging in...', false);
+            console.log('Attempting login...');
 
-        console.log('Step 1: Calling supabase.auth.signInWithPassword...');
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
-        console.log('Step 2: Sign in response:', {
-            hasData: !!data,
-            hasError: !!error,
-            sessionExists: !!data?.session,
-            userEmail: data?.user?.email || 'none'
-        });
-
-        if (error) {
-            console.error('Sign in error:', error);
-            throw error;
-        }
-
-        if (data?.session) {
-            console.log('Step 3: Session created successfully:', {
-                user: data.session.user.email,
-                expiresAt: data.session.expires_at,
-                sessionId: data.session.id,
-                accessToken: data.session.access_token ? 'exists' : 'missing'
+            // Sign in
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
             });
 
-            // Validate session data
-            if (!data.session.access_token) {
-                throw new Error('Invalid session: missing access token');
-            }
+            console.log('Sign in response:', {
+                success: !!data?.session,
+                error: error?.message || 'none'
+            });
 
-            showMessage('Login successful! Please wait...', false);
+            if (error) throw error;
+            if (!data?.session) throw new Error('No session created');
 
-            try {
-                // Set the session in Supabase client
-                await supabase.auth.setSession({
-                    access_token: data.session.access_token,
-                    refresh_token: data.session.refresh_token
-                });
-                console.log('Step 5: Session set successfully');
+            // Store session data
+            const storageKey = `sb-${config.supabaseUrl}-auth-token`;
+            const sessionData = {
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+                expires_at: Math.floor(Date.now() / 1000) + 3600
+            };
 
-                // Create a state parameter with the session info
-                const state = btoa(JSON.stringify({
-                    access_token: data.session.access_token,
-                    refresh_token: data.session.refresh_token,
-                    user: data.session.user
-                }));
+            console.log('Storing session data...');
+            localStorage.setItem(storageKey, JSON.stringify(sessionData));
 
-                // Redirect with state parameter
-                window.location.href = `/?auth_state=${encodeURIComponent(state)}`;
-            } catch (sessionError) {
-                console.error('Session error:', sessionError);
-                throw new Error('Failed to set session');
-            }
-        } else {
-            console.error('Step X: No session in response data');
-            throw new Error('No session created');
+            // Set session in Supabase client
+            console.log('Setting session in Supabase client...');
+            await supabase.auth.setSession({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token
+            });
+
+            // Verify the session was set
+            const { data: { session } } = await supabase.auth.getSession();
+            console.log('Session verification:', {
+                isSet: !!session,
+                user: session?.user?.email || 'none'
+            });
+
+            showMessage('Login successful! Redirecting...', false);
+
+            // Redirect to home page
+            console.log('Redirecting to home page...');
+            window.location.href = window.location.origin + window.location.pathname.replace('login.html', '');
+
+        } catch (error) {
+            console.error('Login error:', error);
+            showMessage(error.message || 'An error occurred during login', true);
         }
-    } catch (error) {
-        console.error('Login error:', error);
-        console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-        });
-        showMessage(error.message || 'Error logging in. Please try again.', true);
-    }
-}); 
+    });
+} 
