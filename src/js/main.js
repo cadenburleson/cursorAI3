@@ -55,7 +55,7 @@ async function initializeAuth() {
                 });
 
                 // Clean up URL
-                window.history.replaceState({}, document.title, '/');
+                window.history.replaceState({}, document.title, './');
 
                 // Verify session was set
                 const { data: { session }, error } = await supabase.auth.getSession();
@@ -71,7 +71,7 @@ async function initializeAuth() {
                 return;
             } catch (error) {
                 console.error('Main: Error setting session from URL state:', error);
-                window.location.href = '/login.html';
+                window.location.href = './login.html';
                 return;
             }
         }
@@ -90,7 +90,7 @@ async function initializeAuth() {
         }
     } catch (error) {
         console.error('Main: Auth initialization error:', error);
-        window.location.href = '/login.html';
+        window.location.href = './login.html';
     }
 }
 
@@ -153,13 +153,13 @@ function updateAuthUI() {
 loginButton.addEventListener('click', (e) => {
     e.preventDefault();
     console.log('Main: Login button clicked, redirecting to login page');
-    window.location.replace('/login.html');
+    window.location.replace('./login.html');
 });
 
 signupButton.addEventListener('click', (e) => {
     e.preventDefault();
     console.log('Main: Signup button clicked, redirecting to signup page');
-    window.location.replace('/signup.html');
+    window.location.replace('./signup.html');
 });
 
 logoutButton.addEventListener('click', async (e) => {
@@ -171,7 +171,7 @@ logoutButton.addEventListener('click', async (e) => {
         console.log('Main: Sign out successful');
         currentUser = null;
         updateAuthUI();
-        window.location.replace('/');
+        window.location.replace('./');
     } catch (error) {
         console.error('Main: Error logging out:', error);
         console.error('Main: Error details:', {
@@ -361,7 +361,9 @@ function displayHistory(generations) {
 
 // Add copy share link function to window object
 window.copyShareLink = async function (generationId) {
-    const shareUrl = `${window.location.origin}/generation/${generationId}`;
+    // Use query parameter instead of path
+    const baseUrl = window.location.href.split('?')[0]; // Remove any existing query params
+    const shareUrl = `${baseUrl}?share=${generationId}`;
     try {
         await navigator.clipboard.writeText(shareUrl);
         alert('Share link copied to clipboard!');
@@ -432,46 +434,63 @@ window.showDeleteConfirmation = function (generationId) {
 
 // Handle URL routing for individual generations
 async function handleRouting() {
-    const path = window.location.pathname;
-    const generationMatch = path.match(/^\/generation\/(.+)$/);
+    // Check for share parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedId = urlParams.get('share');
 
-    if (generationMatch) {
-        const generationId = generationMatch[1];
+    if (sharedId) {
         try {
             const { data: generation, error } = await supabase
                 .from('side_hustle_generations')
                 .select('*')
-                .eq('id', generationId)
+                .eq('id', sharedId)
                 .single();
 
             if (error) throw error;
 
             if (generation) {
                 // Hide the form and show only the result
-                document.getElementById('generator-form').parentElement.style.display = 'none';
-                document.getElementById('history').style.display = 'none';
+                const formElement = document.getElementById('generator-form');
+                const historyElement = document.getElementById('history');
+                const authSection = document.getElementById('auth-section');
+
+                if (formElement && formElement.parentElement) {
+                    formElement.parentElement.style.display = 'none';
+                }
+                if (historyElement) {
+                    historyElement.style.display = 'none';
+                }
+                if (authSection) {
+                    authSection.style.display = 'none';
+                }
 
                 // Display the shared generation
-                resultsDiv.classList.remove('hidden');
-                displayResult(generation.generated_idea);
+                if (resultsDiv) {
+                    resultsDiv.classList.remove('hidden');
+                    displayResult(generation.generated_idea);
 
-                // Add a "Generate Your Own" button
-                const generateOwnBtn = document.createElement('div');
-                generateOwnBtn.className = 'mt-8 text-center';
-                generateOwnBtn.innerHTML = `
-                    <a href="/" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                        Generate Your Own Side-Hustle Idea
-                    </a>
-                `;
-                resultsDiv.appendChild(generateOwnBtn);
+                    // Add a "Generate Your Own" button
+                    const generateOwnBtn = document.createElement('div');
+                    generateOwnBtn.className = 'mt-8 text-center';
+                    generateOwnBtn.innerHTML = `
+                        <a href="./" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Generate Your Own Side-Hustle Idea
+                        </a>
+                    `;
+                    resultsDiv.appendChild(generateOwnBtn);
+                }
             } else {
-                resultsDiv.innerHTML = '<p class="text-red-500">Generation not found</p>';
-                resultsDiv.classList.remove('hidden');
+                if (resultsDiv) {
+                    resultsDiv.innerHTML = '<p class="text-red-500">Generation not found</p>';
+                    resultsDiv.classList.remove('hidden');
+                }
             }
         } catch (error) {
             console.error('Error fetching generation:', error);
-            resultsDiv.innerHTML = '<p class="text-red-500">Error loading generation</p>';
-            resultsDiv.classList.remove('hidden');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = '<p class="text-red-500">Error loading generation</p>';
+                resultsDiv.classList.remove('hidden');
+            }
         }
     }
 }
