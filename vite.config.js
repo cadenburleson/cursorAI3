@@ -18,6 +18,11 @@ export default defineConfig({
             }
         }
     },
+    resolve: {
+        alias: {
+            '/js': resolve(__dirname, 'src/js')
+        }
+    },
     server: {
         port: 3000,
         open: true
