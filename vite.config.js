@@ -6,7 +6,7 @@ export default defineConfig({
     base: './',
     envDir: '../',
     build: {
-        outDir: resolve(__dirname, 'dist'),
+        outDir: 'dist',
         emptyOutDir: true,
         rollupOptions: {
             input: {
