@@ -6,7 +6,7 @@ export default defineConfig({
     base: './',
     envDir: '../',
     build: {
-        outDir: '../dist',
+        outDir: resolve(__dirname, 'dist'),
         emptyOutDir: true,
         rollupOptions: {
             input: {
@@ -28,4 +28,4 @@ export default defineConfig({
         open: true
     },
     envPrefix: 'VITE_'
-}); 
+});
