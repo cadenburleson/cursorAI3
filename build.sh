@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Run the build
-npm run build
+# Run the Vite build directly
+npx vite build
 
 # Ensure we're in the right directory
 cd src
