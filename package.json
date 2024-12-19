@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "chmod +x build.sh && ./build.sh",
     "preview": "vite preview"
   },
   "keywords": [
