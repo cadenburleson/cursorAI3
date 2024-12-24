@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { CONFIG } from './config.js';
 import { marked } from 'marked';
 
@@ -20,6 +21,12 @@ const openai = new OpenAI({
     dangerouslyAllowBrowser: true
 });
 
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+    apiKey: CONFIG.ANTHROPIC_API_KEY,
+    dangerouslyAllowBrowser: true
+});
+
 // DOM Elements
 const form = document.getElementById('generator-form');
 const resultsDiv = document.getElementById('results');
@@ -30,6 +37,7 @@ const loginButton = document.getElementById('login-button');
 const signupButton = document.getElementById('signup-button');
 const logoutButton = document.getElementById('logout-button');
 const generateButton = document.querySelector('#generator-form button[type="submit"]');
+const modelSelector = document.getElementById('model-selector');
 
 // Auth state management
 let currentUser = null;
@@ -227,22 +235,55 @@ form.addEventListener('submit', async (e) => {
     `;
 
     try {
-        // Generate idea using OpenAI
-        const completion = await openai.chat.completions.create({
-            messages: [
-                {
-                    role: "system",
-                    content: CONFIG.SYSTEM_PROMPT
-                },
-                {
+        let generated_idea;
+        const selectedModel = modelSelector.value;
+
+        if (selectedModel.startsWith('claude')) {
+            // Generate idea using Anthropic
+            const completion = await anthropic.messages.create({
+                model: selectedModel,
+                max_tokens: 4096,
+                messages: [{
                     role: "user",
                     content: userPrompt
-                }
-            ],
-            model: "gpt-3.5-turbo",
-        });
+                }],
+                system: CONFIG.SYSTEM_PROMPT
+            });
 
-        const generated_idea = completion.choices[0].message.content;
+            console.log('Anthropic API Response:', completion);
+            console.log('Content structure:', completion.content);
+
+            generated_idea = completion.content[0].value || completion.content[0].text;
+
+            // If the response is still undefined, try accessing the content directly
+            if (!generated_idea && completion.content) {
+                generated_idea = typeof completion.content === 'string' ? completion.content : JSON.stringify(completion.content);
+            }
+
+            // Final fallback
+            if (!generated_idea) {
+                console.error('Failed to extract content from response:', completion);
+                throw new Error('Failed to get a valid response from Claude');
+            }
+
+            console.log('Final generated idea:', generated_idea);
+        } else {
+            // Generate idea using OpenAI
+            const completion = await openai.chat.completions.create({
+                messages: [
+                    {
+                        role: "system",
+                        content: CONFIG.SYSTEM_PROMPT
+                    },
+                    {
+                        role: "user",
+                        content: userPrompt
+                    }
+                ],
+                model: selectedModel,
+            });
+            generated_idea = completion.choices[0].message.content;
+        }
 
         // Save to Supabase
         const { data, error } = await supabase
@@ -250,7 +291,8 @@ form.addEventListener('submit', async (e) => {
             .insert([{
                 user_id: currentUser.id,
                 generated_idea,
-                inputs
+                inputs,
+                model: selectedModel
             }]);
 
         if (error) throw error;
@@ -299,64 +341,89 @@ function displayResult(idea) {
 // Load user's generation history
 async function loadUserHistory() {
     try {
+        console.log('Loading history for user:', currentUser?.id);
         const { data, error } = await supabase
             .from('side_hustle_generations')
             .select('*')
-            .eq('user_id', currentUser.id)
+            .eq('user_id', currentUser?.id)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error fetching history:', error);
+            throw error;
+        }
 
-        displayHistory(data);
+        console.log('Fetched generations:', data);
+        displayHistory(data || []);
     } catch (error) {
         console.error('Error loading history:', error);
+        historyList.innerHTML = '<p class="text-red-500">Error loading generation history</p>';
     }
 }
 
 // Display generation history with markdown formatting
 function displayHistory(generations) {
-    historyList.innerHTML = generations.map(gen => {
-        // Extract the first line as title, fallback to timestamp if no clear title
-        const lines = gen.generated_idea.split('\n');
-        const title = lines[0].replace(/^#\s*/, '').trim() || 'Side Hustle Idea';
+    if (!Array.isArray(generations)) {
+        console.error('Invalid generations data:', generations);
+        return;
+    }
 
-        return `
-        <details class="bg-white rounded-lg shadow-sm p-4 mb-4">
-            <summary class="text-sm text-gray-500 mb-2 cursor-pointer hover:text-gray-700">
-                ${title} (${new Date(gen.created_at).toLocaleString()})
-            </summary>
-            <div class="prose max-w-none mt-4">${marked.parse(gen.generated_idea)}</div>
-            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h3 class="font-semibold text-gray-700 mb-2">Generation Inputs:</h3>
-                <div class="space-y-2 text-sm text-gray-600">
-                    <div>${gen.inputs.skills}</div>
-                    <div>${gen.inputs.background}</div>
-                    <div>${gen.inputs.ideal_customer}</div>
-                    <div>${gen.inputs.secondary_goal}</div>
+    historyList.innerHTML = generations.map(gen => {
+        try {
+            if (!gen || !gen.generated_idea) {
+                console.warn('Invalid generation entry:', gen);
+                return '';
+            }
+
+            // Extract the first line as title, fallback to timestamp if no clear title
+            const lines = gen.generated_idea.split('\n').filter(line => line.trim());
+            const title = lines.length > 0 ? lines[0].replace(/^#\s*/, '').trim() : 'Side Hustle Idea';
+            const timestamp = gen.created_at ? new Date(gen.created_at).toLocaleString() : 'Unknown Date';
+
+            return `
+            <details class="bg-white rounded-lg shadow-sm p-4 mb-4">
+                <summary class="text-sm text-gray-500 mb-2 cursor-pointer hover:text-gray-700">
+                    ${title} (${timestamp})
+                </summary>
+                <div class="prose max-w-none mt-4">${marked.parse(gen.generated_idea)}</div>
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2">Generation Inputs:</h3>
+                    <div class="space-y-2 text-sm text-gray-600">
+                        ${gen.inputs ? `
+                            <div>${gen.inputs.skills || ''}</div>
+                            <div>${gen.inputs.background || ''}</div>
+                            <div>${gen.inputs.ideal_customer || ''}</div>
+                            <div>${gen.inputs.secondary_goal || ''}</div>
+                        ` : '<div>No input data available</div>'}
+                    </div>
                 </div>
-            </div>
-            <div class="mt-4 flex justify-end space-x-2">
-                <button 
-                    onclick="window.copyShareLink('${gen.id}')"
-                    class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                    Share
-                </button>
-                <button 
-                    onclick="window.showDeleteConfirmation('${gen.id}')"
-                    class="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Delete
-                </button>
-            </div>
-        </details>
-    `}).join('');
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button 
+                        onclick="window.copyShareLink('${gen.id}')"
+                        class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        Share
+                    </button>
+                    <button 
+                        onclick="window.showDeleteConfirmation('${gen.id}')"
+                        class="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            </details>
+        `;
+        } catch (error) {
+            console.error('Error displaying generation:', error, gen);
+            return '';
+        }
+    }).join('');
 }
 
 // Add copy share link function to window object
