@@ -380,10 +380,30 @@ function displayHistory(generations) {
             const title = lines.length > 0 ? lines[0].replace(/^#\s*/, '').trim() : 'Side Hustle Idea';
             const timestamp = gen.created_at ? new Date(gen.created_at).toLocaleString() : 'Unknown Date';
 
+            // Determine model display name and color
+            const modelDisplay = gen.model ? gen.model.includes('claude') ? {
+                name: 'Claude',
+                bgColor: 'bg-orange-500',
+            } : {
+                name: 'GPT',
+                bgColor: 'bg-blue-500',
+            } : {
+                name: 'Unknown',
+                bgColor: 'bg-gray-500',
+            };
+
             return `
             <details class="bg-white rounded-lg shadow-sm p-4 mb-4">
-                <summary class="text-sm text-gray-500 mb-2 cursor-pointer hover:text-gray-700">
-                    ${title} (${timestamp})
+                <summary class="text-sm text-gray-500 mb-2 cursor-pointer hover:text-gray-700 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7l7 7-7 7" />
+                        </svg>
+                        <span>${title} (${timestamp})</span>
+                    </div>
+                    <span class="${modelDisplay.bgColor} text-white text-xs px-2 py-1 rounded-full ml-2">
+                        ${modelDisplay.name}
+                    </span>
                 </summary>
                 <div class="prose max-w-none mt-4">${marked.parse(gen.generated_idea)}</div>
                 <div class="mt-4 p-4 bg-gray-50 rounded-lg">
