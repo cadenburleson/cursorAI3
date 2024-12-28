@@ -393,49 +393,54 @@ function displayHistory(generations) {
             };
 
             return `
-            <details class="bg-white rounded-lg shadow-sm p-4 mb-4">
-                <summary class="text-sm text-gray-500 mb-2 cursor-pointer hover:text-gray-700 flex items-center justify-between">
-                    <div class="flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7l7 7-7 7" />
-                        </svg>
-                        <span>${title} (${timestamp})</span>
+            <details class="bg-white rounded-lg shadow-md p-4 mb-4 group">
+                <summary class="list-none cursor-pointer">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="text-gray-500 mr-2">▶</div>
+                            <div>
+                                <div class="text-sm text-gray-700">${title}</div>
+                                <div class="text-xs text-gray-400">${timestamp}</div>
+                            </div>
+                        </div>
+                        <span class="${modelDisplay.bgColor} text-white text-xs px-2 py-1 rounded-full">
+                            ${modelDisplay.name}
+                        </span>
                     </div>
-                    <span class="${modelDisplay.bgColor} text-white text-xs px-2 py-1 rounded-full ml-2">
-                        ${modelDisplay.name}
-                    </span>
                 </summary>
-                <div class="prose max-w-none mt-4">${marked.parse(gen.generated_idea)}</div>
-                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <h3 class="font-semibold text-gray-700 mb-2">Generation Inputs:</h3>
-                    <div class="space-y-2 text-sm text-gray-600">
-                        ${gen.inputs ? `
-                            <div>${gen.inputs.skills || ''}</div>
-                            <div>${gen.inputs.background || ''}</div>
-                            <div>${gen.inputs.ideal_customer || ''}</div>
-                            <div>${gen.inputs.secondary_goal || ''}</div>
-                        ` : '<div>No input data available</div>'}
+                <div class="mt-4 pl-6">
+                    <div class="prose max-w-none">${marked.parse(gen.generated_idea)}</div>
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-semibold text-gray-700 mb-2">Generation Inputs:</h3>
+                        <div class="space-y-2 text-sm text-gray-600">
+                            ${gen.inputs ? `
+                                <div>${gen.inputs.skills || ''}</div>
+                                <div>${gen.inputs.background || ''}</div>
+                                <div>${gen.inputs.ideal_customer || ''}</div>
+                                <div>${gen.inputs.secondary_goal || ''}</div>
+                            ` : '<div>No input data available</div>'}
+                        </div>
                     </div>
-                </div>
-                <div class="mt-4 flex justify-end space-x-2">
-                    <button 
-                        onclick="window.copyShareLink('${gen.id}')"
-                        class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                        </svg>
-                        Share
-                    </button>
-                    <button 
-                        onclick="window.showDeleteConfirmation('${gen.id}')"
-                        class="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
-                    </button>
+                    <div class="mt-4 flex justify-end space-x-2">
+                        <button 
+                            onclick="window.copyShareLink('${gen.id}')"
+                            class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            </svg>
+                            Share
+                        </button>
+                        <button 
+                            onclick="window.showDeleteConfirmation('${gen.id}')"
+                            class="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
                 </div>
             </details>
         `;

@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Remove default details marker */
+details>summary {
+    list-style: none;
+}
+
+details>summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Rotate arrow when details is open */
+details[open] .text-gray-500 {
+    transform: rotate(90deg);
+}
+
+/* Add transition for smooth rotation */
+.text-gray-500 {
+    transition: transform 0.2s ease-in-out;
+}
+
 /* Markdown content styles */
 .prose {
     @apply text-gray-800 leading-relaxed max-w-none w-full;
@@ -37,24 +56,97 @@
 
 /* Table styles */
 .prose table {
-    @apply border-collapse border border-gray-200 my-4;
+    @apply border-collapse border border-gray-200 my-2;
     width: 100%;
     display: block;
     overflow-x: auto;
+    max-height: 80vh;
 }
 
 .prose thead {
     @apply bg-gray-50;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.prose th,
+.prose td {
+    @apply px-3 py-2 border border-gray-200;
+    min-width: 120px;
+    max-width: 300px;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .prose th {
-    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border border-gray-200;
-    min-width: 150px;
+    @apply text-left font-semibold text-gray-700;
+    font-size: 12px;
+    background: #f9fafb;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: auto;
+    white-space: normal;
+    padding: 8px 8px;
+}
+
+/* Add a shadow to the sticky header */
+.prose thead::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.1);
 }
 
 .prose td {
-    @apply px-6 py-4 text-sm text-gray-900 border border-gray-200;
-    min-width: 150px;
+    @apply text-sm text-gray-900;
+    background: white;
+}
+
+/* Make certain columns narrower */
+.prose th:nth-child(3),
+.prose th:nth-child(4),
+.prose th:nth-child(5),
+.prose td:nth-child(3),
+.prose td:nth-child(4),
+.prose td:nth-child(5) {
+    min-width: 80px;
+    max-width: 100px;
+    text-align: center;
+}
+
+/* First two columns and last columns can be wider */
+.prose th:nth-child(1),
+.prose th:nth-child(2),
+.prose th:nth-child(6),
+.prose th:nth-child(7),
+.prose th:nth-child(8),
+.prose th:nth-child(9),
+.prose td:nth-child(1),
+.prose td:nth-child(2),
+.prose td:nth-child(6),
+.prose td:nth-child(7),
+.prose td:nth-child(8),
+.prose td:nth-child(9) {
+    min-width: 200px;
+    max-width: 400px;
+}
+
+/* Ensure table container allows horizontal scrolling */
+.prose>div {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure table cells wrap text properly */
+.prose table p {
+    margin: 0;
 }
 
 /* Code block styles */
